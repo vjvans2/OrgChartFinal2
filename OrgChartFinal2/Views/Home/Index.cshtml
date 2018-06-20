@@ -1,0 +1,134 @@
+﻿@model OrgChartFinal2.Models.CompanyCSV
+@using Newtonsoft.Json
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script type="text/javascript">
+    google.charts.load('current', { packages: ["orgchart"] });
+    google.charts.setOnLoadCallback(drawChartWhole);
+    google.charts.setOnLoadCallback(drawChartChosen);
+
+    function drawChartWhole() {
+        var serialized = $("#serialized").val();
+        var dataArray = [];
+        $.each(JSON.parse(serialized), function (i, item) {
+                    dataArray.push([item.EmployeeId, item.FullName, item.Title, item.ManagerId]);
+                });
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Name');
+            data.addColumn('string', 'Manager');
+            data.addColumn('string', 'ToolTip');
+
+            for (var i = 0; i < dataArray.length; i++) {
+                var employeeId = dataArray[i][0].toString();
+                var employeeFullName = dataArray[i][1];
+                var title = dataArray[i][2];
+                var managerFullName = dataArray[i][3] != null ? dataArray[i][3].toString() : '';
+
+                data.addRows([[{
+                    v: employeeId,
+                    f: '<div style="width:175px">' + employeeFullName + '<br/>' + title + '<br/>' + employeeId + '</div>'
+                }, managerFullName, null]]);
+            }
+
+            var options = {
+                'size': 'large',
+                'allowHtml': true,
+                'allowCollapse': true
+            };
+
+            var chart = new google.visualization.OrgChart(document.getElementById('orgChart'));
+            chart.draw(data, options);
+    }
+
+    function drawChartChosen() {
+        var chosen = $("#chosen").val()
+        var dataArray = [];
+        $.each(JSON.parse(chosen), function (i, item) {
+            dataArray.push([item.EmployeeId, item.FullName, item.Title, item.ManagerId, item.IsChosen]);
+        });
+        if (dataArray.length > 0) {
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Name');
+            data.addColumn('string', 'Manager');
+            data.addColumn('string', 'ToolTip');
+
+            for (var i = 0; i < dataArray.length; i++) {
+                var employeeId = dataArray[i][0].toString();
+                var employeeFullName = dataArray[i][1];
+                var title = dataArray[i][2];
+                var managerFullName = dataArray[i][4] == true ? null : dataArray[i][3].toString();
+
+                data.addRows([[{
+                    v: employeeId,
+                    f: '<div style="width:175px">' + employeeFullName + '<br/>' + title + '<br/>' + employeeId + '</div>'
+                }, managerFullName, null]]);
+            }
+
+            var options = {
+                'size': 'large',
+                'allowHtml': true,
+                'allowCollapse': true
+            };
+
+            var chart = new google.visualization.OrgChart(document.getElementById('empChart'));
+            chart.draw(data, options);
+        }
+        else {
+            $("#empChart").text('No direct reports for this Employee');
+        }
+
+    }
+
+
+</script>
+<style>
+    table {
+        border-collapse: separate !important;
+    }
+</style>
+
+@{
+    bool showEmployeeInfo = Model.Employees.Any();
+}
+
+@Html.Hidden("serialized", @JsonConvert.SerializeObject(Model.Employees))
+@Html.Hidden("chosen", JsonConvert.SerializeObject(Model.ChosenMappedEmployees))
+
+<div class="col-md-12">
+    @Html.Label("Select a .CSV File to see an Organization Chart")
+    @using (Html.BeginForm("InsertNewCSV", "Home", FormMethod.Post, new { enctype = "multipart/form-data" }))
+    {
+        <input type="file" name="csvFile" />
+        <br />
+        <input type="submit" value="Insert New CSV" />
+    }
+</div>
+<br />
+@if (showEmployeeInfo)
+{
+    <div class="col-md-12">
+        @Html.Label("Select an EmployeeId to see more info.")
+        @using (Html.BeginForm("ShowEmployeeInfo", "Home", FormMethod.Post))
+        {
+            <input type="number" min="1" max=@Model.Employees.Count() value="1" name="employeeId" /> <br />
+            <input type="submit" id="submitShowEmployeeInfo" value="Show Employee Info By EmployeeId" />
+        }
+        <br />
+        @if (Model.ChosenEmployee != null)
+        {
+            <b>Employee Name: </b>@Model.ChosenEmployee.FullName <br />
+            <b>Employee Title: </b>@Model.ChosenEmployee.Title <br />
+            <b>Employee Id: </b>@Model.ChosenEmployee.EmployeeId
+        }
+    </div>
+}
+<br /><br /><br />
+<div class="col-md-12">
+    @Html.Label("Organization Chart")
+    <div id="orgChart" style="width:auto"></div>
+    <br /><br />
+    @Html.Label("Employee Direct Report Chart")
+    <div id="empChart" style="width:auto"></div>
+</div>
